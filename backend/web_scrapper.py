@@ -26,4 +26,4 @@ def scrape_to_file(url, output_file):
         print(f"Error during requests to {url}: {str(e)}")
 
 # Example usage
-scrape_to_file("https://cosmic-scans.com/eleceed-raws-chapter-273/", "output.html")
+scrape_to_file("https://cosmic-scans.com/lookism-raws-chapter-477/", "output.html")

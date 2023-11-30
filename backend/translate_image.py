@@ -114,7 +114,7 @@ def translate_image():
                 for line in wrapped_lines:
                     # Check if the position is within the image bounds
                     if rect_start[1] < img.shape[0]:
-                        cv2.putText(img, line.strip(), rect_start, font, font_scale, opposite_color, 1, cv2.LINE_AA)
+                        #cv2.putText(img, line.strip(), rect_start, font, font_scale, opposite_color, 1, cv2.LINE_AA)
                         rect_start = (rect_start[0], rect_start[1] + int(font_scale * 30))  # Move down for the next line
 
 
