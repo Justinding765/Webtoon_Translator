@@ -1,29 +1,41 @@
 import requests
 from bs4 import BeautifulSoup
 
-def scrape_to_file(url, output_file):
+def match_id(tag):
+            return tag.name == 'div' and tag.get('id') in ['comic_view_area', 'readerarea']
+def general_scraping(soup):
+    # Find all image tags
+    images = soup.find_all('img')
+    
+    # Extract the 'src' attribute from each image
+    image_urls = [str(img) for img in images]
+    
+    # Return the list of image URLs
+    return '\n'.join(image_urls)
+
+def scrape_page(url, output_file):
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Raises an HTTPError if the HTTP request returned an unsuccessful status code
+        response.raise_for_status()  # Raises an HTTPError for unsuccessful status codes
 
-        # Parse the HTML content
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Find the specific div by its ID
-        def match_id(tag):
-            return tag.name == 'div' and tag.get('id') in ['comic_view_area', 'readerarea']
+        
         view_area_div = soup.find(match_id)
 
-        # Write the specific div's content to a file
         if view_area_div:
             with open(output_file, 'w', encoding='utf-8') as file:
                 file.write(str(view_area_div))
                 print(f"Content of div 'comic_view_area' written to {output_file}")
         else:
-            print("Div with id 'comic_view_area' not found.")
+            # Fallback to general scraping (get all images)
+            general_content = general_scraping(soup)
+            with open(output_file, 'w', encoding='utf-8') as file:
+                file.write(general_content)
+                print(f"Image URLs written to {output_file}")
 
-    except requests.RequestException as e:
-        print(f"Error during requests to {url}: {str(e)}")
+    except requests.HTTPError as http_err:
+        print(f"HTTP error occurred: {http_err}")
+    except Exception as err:
+        print(f"An error occurred: {err}")
 
-# Example usage
-scrape_to_file("https://cosmic-scans.com/lookism-raws-chapter-477/", "output.html")

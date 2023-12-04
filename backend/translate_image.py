@@ -1,21 +1,53 @@
 from flask import Flask, request, jsonify
-import base64
 from io import BytesIO
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from google.cloud import vision
 from google.cloud import translate_v3 as translate_v3
 import os
-from datetime import datetime
 import cv2
 import numpy as np
 import uuid
+from flask_cors import CORS
+from web_scrapper import scrape_page  # Import the function
+import shutil  # Import shutil for directory handling
+import subprocess
 
 # Set Google Cloud credentials
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../credentials.json'
 
 app = Flask(__name__)
-# Function to wrap text
+CORS(app)
+
+def clean_up(directory):
+
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+
+@app.route('/web_scrapper', methods=['POST'])
+def web_scrapper():
+    #clean_up
+    directory = '../frontend/Static/Images'
+    clean_up(directory)
+
+    data = request.json
+    url = data.get('url')
+    if not url:
+        return{"error": "No URL provided"}, 400
+    try:
+        result = scrape_page(url, "../frontend/src/pages/output.html")  # Call the function from web_scrapper.py
+
+        # Run Go script after successful scraping
+        #subprocess.run(["./image_translator.exe"], check=True)
+        return jsonify({"data": result})
+    except subprocess.CalledProcessError as e:
+        return jsonify({"error": f"Go script failed: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/translate_image', methods=['POST'])
 def translate_image():
@@ -40,18 +72,35 @@ def translate_image():
 
     # Process each block of text
     temp = ""
+    buffer_size =  4  # Increase the buffer size as needed to cover more area around the text
     for page in response.full_text_annotation.pages:
             for block in page.blocks:
                 block_texts = []
+
+                mask = np.zeros(img.shape[:2], np.uint8)  # Initialize the mask for the entire block
+
+                # Create a mask and construct block text simultaneously
                 for paragraph in block.paragraphs:
                     paragraph_texts = []
                     for word in paragraph.words:
                         word_text = ''.join([symbol.text for symbol in word.symbols])
                         paragraph_texts.append(word_text)
+                        # Get the bounding polygon of the word for the mask
+                        word_vertices = np.array([[vertex.x, vertex.y] for vertex in word.bounding_box.vertices], dtype=np.int32)
+                        
+                        # Apply a buffer around each word's bounding box
+                        cv2.polylines(mask, [word_vertices], isClosed=True, color=(255, 255, 255), thickness=buffer_size)
+                        cv2.fillPoly(mask, [word_vertices], 255)  # Fill the word's area on the mask
+
                     block_texts.append(' '.join(paragraph_texts))
 
+
                 block_text = ' '.join(block_texts)
-                # Use the Advanced API for translation
+                # Now inpaint the entire block based on the mask we created
+                inpaint_radius = 8  # Adjust as needed
+                img = cv2.inpaint(img, mask, inpaint_radius, cv2.INPAINT_TELEA)
+
+                                # Use the Advanced API for translation
                 parent = "projects/omega-winter-406314/locations/global"
                 response = translate_client.translate_text(
                     contents=[block_text],
@@ -64,12 +113,6 @@ def translate_image():
                 vertices = [(vertex.x, vertex.y) for vertex in block.bounding_box.vertices]
                 rect_start = (vertices[0][0], vertices[0][1])
                 rect_end = (vertices[2][0], vertices[2][1])
-                # Create a mask for inpainting
-                mask = np.zeros(img.shape[:2], np.uint8)
-                cv2.rectangle(mask, rect_start, rect_end, 255, thickness=-1)
-
-                # Inpainting to remove the text, looks at 8 pixel radius
-                img = cv2.inpaint(img, mask, 8, cv2.INPAINT_TELEA)
 
                 # Extract a small area around the text to analyze the color for opposite color
                 margin = 5
@@ -114,7 +157,7 @@ def translate_image():
                 for line in wrapped_lines:
                     # Check if the position is within the image bounds
                     if rect_start[1] < img.shape[0]:
-                        #cv2.putText(img, line.strip(), rect_start, font, font_scale, opposite_color, 1, cv2.LINE_AA)
+                        cv2.putText(img, line.strip(), rect_start, font, font_scale, opposite_color, 1, cv2.LINE_AA)
                         rect_start = (rect_start[0], rect_start[1] + int(font_scale * 30))  # Move down for the next line
 
 
@@ -124,10 +167,10 @@ def translate_image():
     unique_id = uuid.uuid4()
     filename = f"translated_image_{unique_id}.jpg"
     filepath = os.path.join(static_folder_path, filename)
-    temp+= "\n\n\n\n\n"
     img_pil.save(filepath, "JPEG")
-
-    return jsonify({"image": filepath})
+    #src is differnt then filepath as the  output.html is in the frontend folder
+    img_src = "../../Static/Images/" + filename
+    return jsonify({"image": img_src})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

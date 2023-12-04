@@ -144,7 +144,7 @@ func modifyHTML(inputFile, outputFile string) error {
 }
 
 func main() {
-    err := modifyHTML("output.html", "output.html")
+    err := modifyHTML("../frontend/src/pages/output.html", "../frontend/src/pages/output.html")
     if err != nil {
         fmt.Println("Error:", err)
     }
