@@ -23,4 +23,4 @@ yarn-debug.log*
 yarn-error.log*
 
 ./backend/credentials.json
-frontend/Static/Images/*
+./frontend/Static/Images/*
