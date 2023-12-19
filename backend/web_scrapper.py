@@ -1,8 +1,20 @@
 import requests
 from bs4 import BeautifulSoup
+import sys
+import os
+
+def clean_up(directory):
+
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
 
 def match_id(tag):
             return tag.name == 'div' and tag.get('id') in ['comic_view_area', 'readerarea']
+#Incase the specific id's aren't found
 def general_scraping(soup):
     # Find all image tags
     images = soup.find_all('img')
@@ -14,15 +26,14 @@ def general_scraping(soup):
     return '\n'.join(image_urls)
 
 def scrape_page(url, output_file):
+    #clean_up
+    directory = '../frontend/src/Static/Images'
+    clean_up(directory)
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raises an HTTPError for unsuccessful status codes
-
         soup = BeautifulSoup(response.text, 'html.parser')
-
-        
         view_area_div = soup.find(match_id)
-
         if view_area_div:
             with open(output_file, 'w', encoding='utf-8') as file:
                 file.write(str(view_area_div))
@@ -39,3 +50,7 @@ def scrape_page(url, output_file):
     except Exception as err:
         print(f"An error occurred: {err}")
 
+if __name__ == '__main__':
+    url = sys.argv[1]
+    output_file = sys.argv[2]
+    scrape_page(url, output_file)

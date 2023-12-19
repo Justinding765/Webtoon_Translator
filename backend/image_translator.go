@@ -5,15 +5,18 @@ import (
     "encoding/json"
     "fmt"
     "io/ioutil"
-    "net/http"
+    "os/exec"
     "sync"
     "golang.org/x/net/html"
+    "log"
+    "strconv"
 )
 
 type ImageData struct {
-    ModifiedNode *html.Node
-    Index        int
+    URL   string
+    Index int
 }
+
 
 func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
     // Extract the image URL from the node
@@ -24,58 +27,39 @@ func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
             break
         }
     }
+    // Construct the command to run the Python script
+    cmd := exec.Command("python", "./translate_Images.py", imgURL, strconv.Itoa(index))
 
-    // Make a request to the Python API
-    apiURL := "http://localhost:5000/translate_image" // Replace with your actual API URL
-    jsonData, _ := json.Marshal(map[string]string{"url": imgURL})
-    resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
+    // Execute the command and capture the combined standard output and standard error
+    output, err := cmd.CombinedOutput()
     if err != nil {
-        fmt.Printf("Failed to request image translation at index %d: %v\n", index, err)
-        return
-    }
-    defer resp.Body.Close()
-
-    // Read the response body
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        fmt.Printf("Failed to read response body at index %d: %v\n", index, err)
+        log.Fatalf("Failed to execute python script at index %d: %v, with output: %s\n", index, err, string(output))
         return
     }
 
-    // Unmarshal the JSON response into a map
+    // Parse the JSON output
     var result map[string]interface{}
-    err = json.Unmarshal(body, &result)
+    err = json.Unmarshal(output, &result)
     if err != nil {
-        fmt.Printf("Failed to unmarshal response body: %v\n", err)
+        log.Printf("Failed to unmarshal python script output at index %d: %v\n", index, err)
         return
     }
 
     // Extract the image URL from the response
     imageUrl, ok := result["image"].(string)
     if !ok {
-        fmt.Println("Error: Expected a string for the 'image' key")
+        log.Printf("Error at index %d: Expected a string for the 'image' key\n", index)
         return
     }
+    
+    fmt.Printf("Translated image URL at index %d: %s\n", index, imageUrl)
 
-
-    // Create a new image node with the translated image
-    translatedNode := &html.Node{
-        Type: html.ElementNode,
-        Data: "img",
-        Attr: []html.Attribute{
-            {Key: "src", Val: imageUrl},
-        },
+    // Send the url to the channel
+    ch <- ImageData{
+        URL:   imageUrl,
+        Index: index,
     }
 
-    // Wrap the translated image in a div
-    divNode := &html.Node{
-        Type: html.ElementNode,
-        Data: "div",
-    }
-    divNode.AppendChild(translatedNode)
-
-    // Send the modified node to the channel
-    ch <- ImageData{ModifiedNode: divNode, Index: index}
 }
 
 func cloneNode(n *html.Node) *html.Node {
@@ -90,15 +74,16 @@ func cloneNode(n *html.Node) *html.Node {
     return newNode
 }
 
-func modifyHTML(inputFile, outputFile string) error {
+func modifyHTML(inputFile string) ([]ImageData, error) {
     content, err := ioutil.ReadFile(inputFile)
+    var image_URLS []ImageData
     if err != nil {
-        return err
+        return image_URLS, err
     }
 
     doc, err := html.Parse(bytes.NewReader(content))
     if err != nil {
-        return err
+        return image_URLS, err
     }
 
     var wg sync.WaitGroup
@@ -124,28 +109,16 @@ func modifyHTML(inputFile, outputFile string) error {
         close(ch)
     }()
 
-    var buf bytes.Buffer
-    buf.WriteString("<html><body>\n")
+    var images []ImageData
 
-    images := make([]*html.Node, index)
     for imgData := range ch {
-        images[imgData.Index] = imgData.ModifiedNode
+        // Append the ImageData object to the images slice
+        images = append(images, imgData)
         wg.Done()
+
     }
-
-    for _, img := range images {
-        html.Render(&buf, img)
-        buf.WriteString("\n")
-    }
-
-    buf.WriteString("</body></html>\n")
-
-    return ioutil.WriteFile(outputFile, buf.Bytes(), 0644)
+   
+    return images, nil
 }
 
-func main() {
-    err := modifyHTML("../frontend/src/pages/output.html", "../frontend/src/pages/output.html")
-    if err != nil {
-        fmt.Println("Error:", err)
-    }
-}
+
