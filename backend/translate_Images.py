@@ -8,7 +8,7 @@ import os
 import cv2
 import numpy as np
 import sys
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './credentials.json'
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './config/credentials.json'
 
 def translate_image(URL, index):
     img_url = URL
