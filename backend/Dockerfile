@@ -1,15 +1,21 @@
 # Start from the official Go image
 FROM golang:latest
 
-# Install Python and pip
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+# Update the package list and install Python, pip, Python virtual environment tools,
+# and the necessary libraries for OpenCV and other graphical operations
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    libgl1-mesa-glx \  
+    libglib2.0-0      
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the working directory inside the container to /usr/src/app/backend
+WORKDIR /usr/src/app/backend
 
 # Create a Python virtual environment and activate it
-RUN python3 -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
+RUN python3 -m venv /usr/src/app/backend/venv
+ENV PATH="/usr/src/app/backend/venv/bin:$PATH"
 
 # Copy the Go and Python dependencies files
 COPY go.mod go.sum requirements.txt ./
@@ -24,7 +30,7 @@ RUN pip3 install -r requirements.txt
 COPY . .
 
 # Set the environment variable for Google Cloud credentials
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+ENV GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/backend/config/credentials.json
 
 # Compile the Go application. This includes both server.go and image_translator.go
 RUN go build -o server .

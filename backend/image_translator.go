@@ -62,6 +62,7 @@ func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
 
 }
 
+//Delete?
 func cloneNode(n *html.Node) *html.Node {
     newNode := &html.Node{
         Type:     n.Type,
@@ -86,11 +87,12 @@ func modifyHTML(inputFile string) ([]ImageData, error) {
         return image_URLS, err
     }
 
-    var wg sync.WaitGroup
+    var wg sync.WaitGroup // Waits for a collection of goroutines to finish
     ch := make(chan ImageData)
     index := 0
 
     var processNode func(*html.Node)
+    //processNode is a recursive function that traverses html document node by node
     processNode = func(n *html.Node) {
         if n.Type == html.ElementNode && n.Data == "img" {
             wg.Add(1)
@@ -103,7 +105,7 @@ func modifyHTML(inputFile string) ([]ImageData, error) {
     }
 
     processNode(doc)
-
+    //started and waits for all images processing goroutines to finsh
     go func() {
         wg.Wait()
         close(ch)

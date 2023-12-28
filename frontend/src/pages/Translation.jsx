@@ -17,7 +17,6 @@ function importAll(r) {
     });
 }
 
-
 // Import images from a specific directory
 const images = importAll(require.context('../../src/Static/Images', false, /\.(png|jpe?g|svg)$/));
   
@@ -37,12 +36,9 @@ const MyComponent = () => {
       htmlContent += `<div><img src="${url}" alt="Image ${index}" /></div>\n`;
  
     });
-    console.log(htmlContent)
-    
     htmlContent+= `</body>
         </html>`
         
-
     // Create a Blob from the HTML string and download it
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const downloadLink = document.createElement('a');

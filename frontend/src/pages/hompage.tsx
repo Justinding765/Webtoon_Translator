@@ -5,7 +5,6 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const [url, setUrl] = useState('');
     const [loading, setLoading] = useState(false);  // New state for loading
-
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setLoading(true);  // Set loading to true when the request starts

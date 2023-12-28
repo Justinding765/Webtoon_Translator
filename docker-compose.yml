@@ -10,7 +10,8 @@ services:
       - ./frontend:/usr/src/app
       - /usr/src/app/node_modules
     environment:
-      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+
 
   backend:
     build:
@@ -18,5 +19,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
+    volumes:
+      - ./frontend:/usr/src/app/frontend  # Bind mount for backend to access frontend files      
     environment:
-      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    
+
