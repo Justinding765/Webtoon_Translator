@@ -1,15 +1,39 @@
 import json
+import io
 from io import BytesIO
 import requests
 from PIL import Image
-from google.cloud import vision
+from google.cloud import vision, storage
 from google.cloud import translate_v3 as translate_v3
 import os
 import cv2
 import numpy as np
 import sys
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './config/credentials.json'
+def upload_image(img_pil, index):
+    # Convert PIL Image to bytes
+    bucket_name = "translated-images"
+    img_byte_arr = io.BytesIO()
+    img_pil.save(img_byte_arr, format='JPEG')
+    img_byte_arr = img_byte_arr.getvalue()
 
+    # Google Cloud Storage client
+    client = storage.Client()
+    bucket = client.get_bucket(bucket_name)
+
+    # Create a blob (GCS file)
+    filename = f"{index}_translated_image.jpg"
+    blob = bucket.blob(filename)
+
+    # Upload the image
+    blob.upload_from_string(img_byte_arr, content_type='image/jpeg')
+
+    # Get the public URL
+    public_url = f"https://storage.googleapis.com/{bucket_name}/{filename}"
+    
+    return json.dumps({"image": public_url})
+
+ 
 def translate_image(URL, index):
     img_url = URL
     # Initialize Google Cloud clients
@@ -121,14 +145,7 @@ def translate_image(URL, index):
 
     # Convert back to PIL Image and save
     img_pil = Image.fromarray(img)
-    static_folder_path = '../frontend/src/Static/Images'  # Relative path from your script to the images folder
-    full_path = os.path.abspath(static_folder_path)
-    filename = f"{index}_translated_image.jpg"
-    filepath = os.path.join(full_path, filename)
-    img_pil.save(filepath, "JPEG")
-    #src is differnt then filepath as the  output.html is in the frontend folder
-    # img_src = "../src/Static/Images/" + filename
-    return json.dumps({"image": filepath})
+    return upload_image(img_pil, index)
 if __name__ == '__main__':
     url = sys.argv[1]
     i = sys.argv[2]

@@ -32,11 +32,9 @@ COPY . .
 # Set the environment variable for Google Cloud credentials
 ENV GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/backend/config/credentials.json
 
-# Compile the Go application. This includes both server.go and image_translator.go
-RUN go build -o server .
 
 # Expose port 5000 to the outside world
 EXPOSE 5000
 
-# Run the server program
-CMD ["./server"]
+# Compile the Go application and run the server program when the container launches
+CMD go build -o /app/server . && /app/server

@@ -4,17 +4,42 @@ import (
     "bytes"
     "encoding/json"
     "fmt"
+    "io"
     "io/ioutil"
     "os/exec"
     "sync"
     "golang.org/x/net/html"
     "log"
     "strconv"
+    "net/http"
+
 )
 
 type ImageData struct {
     URL   string
     Index int
+}
+
+// downloadImage downloads the image from the given URL and returns the path to the local temp file
+func downloadImage(url string) (string, error) {
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    tmpFile, err := ioutil.TempFile("", "image-*.jpg")
+    if err != nil {
+        return "", err
+    }
+    defer tmpFile.Close()
+
+    _, err = io.Copy(tmpFile, resp.Body)
+    if err != nil {
+        return "", err
+    }
+
+    return tmpFile.Name(), nil
 }
 
 

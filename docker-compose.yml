@@ -20,8 +20,10 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./frontend:/usr/src/app/frontend  # Bind mount for backend to access frontend files      
+      - ./frontend:/usr/src/app/frontend  # Bind mount for backend to access frontend files  
+      - ./backend:/usr/src/app/backend
+      - /usr/src/app/backend/venv   # Might have do the same with the gomod dependcies. Anonymous volume for the server binary
     environment:
       - WATCHPACK_POLLING=true
-    
+
 
