@@ -77,7 +77,7 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
     wg.Wait()
     fmt.Println("Finished!")
     fmt.Println("Waiting")
-	time.Sleep(400 * time.Second) // Waits for 5 seconds
+	time.Sleep(5 * time.Second) // Waits for 5 seconds
 	fmt.Println("Wait ends")
 	// Now call modifyHTML
     imageUrls := make([]ImageData, 0)
