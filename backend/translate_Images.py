@@ -9,6 +9,7 @@ import os
 import cv2
 import numpy as np
 import sys
+import time
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './config/credentials.json'
 def upload_image(img_pil, index):
     # Convert PIL Image to bytes
@@ -28,11 +29,11 @@ def upload_image(img_pil, index):
     # Upload the image
     blob.upload_from_string(img_byte_arr, content_type='image/jpeg')
 
-    # Get the public URL
-    public_url = f"https://storage.googleapis.com/{bucket_name}/{filename}"
+    # Generate a unique URL
+    timestamp = int(time.time())
+    unique_url = f"https://storage.googleapis.com/{bucket_name}/{filename}?ts={timestamp}"
     
-    return json.dumps({"image": public_url})
-
+    return json.dumps({"image": unique_url})
  
 def translate_image(URL, index):
     img_url = URL
