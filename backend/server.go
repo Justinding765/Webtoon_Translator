@@ -10,6 +10,7 @@ import (
     "sync"
     "github.com/jung-kurt/gofpdf"
     "os"
+	"time"
 
 
 )
@@ -75,7 +76,9 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
     }()
     wg.Wait()
     fmt.Println("Finished!")
-
+    fmt.Println("Waiting")
+	time.Sleep(400 * time.Second) // Waits for 5 seconds
+	fmt.Println("Wait ends")
 	// Now call modifyHTML
     imageUrls := make([]ImageData, 0)
     imageUrls, err = modifyHTML("./output.html")
