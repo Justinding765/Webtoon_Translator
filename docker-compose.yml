@@ -1,7 +1,9 @@
 version: '3.8'
 services:
   frontend:
-    image: justinding765/webtoon_translator:frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
@@ -12,7 +14,9 @@ services:
 
 
   backend:
-    image: justinding765/webtoon_translator:backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "5000:5000"
     volumes:

@@ -13,7 +13,8 @@ const MyComponent = () => {
   console.log(imageUrls)
   const handleDownloadPdf = async () => {
     setLoading(true);  // Set loading to true when the request s
-    const requestUrl = '/api/download_pdf';
+    const requestUrl = 'http://localhost:5000/download_pdf';
+
     try {
         const response = await fetch(requestUrl);
         console.log(response)

@@ -8,9 +8,9 @@ const HomePage: React.FC = () => {
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setLoading(true);  // Set loading to true when the request starts
-        console.log("/api/translate_images")
+
         try {
-            const response = await fetch('/api/translate_images',  {
+            const response = await fetch('http://localhost:5000/translate_images', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
