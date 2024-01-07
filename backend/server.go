@@ -75,10 +75,7 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
         runPythonScript("./clean_up.py")
     }()
     wg.Wait()
-    fmt.Println("Finished!")
-    fmt.Println("Waiting")
-	time.Sleep(5 * time.Second) // Waits for 5 seconds
-	fmt.Println("Wait ends")
+    fmt.Println("fini!")
 	// Now call modifyHTML
     imageUrls := make([]ImageData, 0)
     imageUrls, err = modifyHTML("./output.html")
