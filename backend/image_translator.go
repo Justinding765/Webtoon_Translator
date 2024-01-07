@@ -19,6 +19,8 @@ type ImageData struct {
     URL   string
     Index int
 }
+var wg sync.WaitGroup // Waits for a collection of goroutines to finish
+
 
 // downloadImage downloads the image from the given URL and returns the path to the local temp file
 func downloadImage(url string) (string, error) {
@@ -45,6 +47,7 @@ func downloadImage(url string) (string, error) {
 
 func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
     // Extract the image URL from the node
+    defer wg.Done()
     var imgURL string
     for _, attr := range node.Attr {
         if attr.Key == "src" {
@@ -112,7 +115,6 @@ func modifyHTML(inputFile string) ([]ImageData, error) {
         return image_URLS, err
     }
 
-    var wg sync.WaitGroup // Waits for a collection of goroutines to finish
     ch := make(chan ImageData)
     index := 0
 
@@ -135,13 +137,12 @@ func modifyHTML(inputFile string) ([]ImageData, error) {
         wg.Wait()
         close(ch)
     }()
-
+    
     var images []ImageData
 
     for imgData := range ch {
         // Append the ImageData object to the images slice
         images = append(images, imgData)
-        wg.Done()
 
     }
    
