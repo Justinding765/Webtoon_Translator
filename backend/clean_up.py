@@ -13,10 +13,6 @@ def clean_up():
     # List all objects in the bucket, set cache-control, and delete them.
     blobs = bucket.list_blobs()
     for blob in blobs:
-        # Set cache-control to no-cache before deletion
-        blob.cache_control = "no-cache"
-        blob.patch()
-
         # Delete the blob
         blob.delete()
 
