@@ -5,39 +5,23 @@ import (
     "fmt"
     "log"
     "net/http"
-    "os/exec"
     "sort"
     "sync"
     "github.com/jung-kurt/gofpdf"
     "os"
-	"time"
-
 
 )
+//Will having these global variables cause issues for concurrent requests?
 var urlsOnly []string
+var req TranslateRequest
 
-type TranslateRequest struct {
-    URL string `json:"url"`
-}
+
 // Helper function to set CORS headers
 func enableCors(w *http.ResponseWriter) {
     (*w).Header().Set("Access-Control-Allow-Origin", "*") // Allow any origin
     (*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE") // Allowed methods
     (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
-
-func runPythonScript(scriptPath string, args ...string) {
-    cmdArgs := append([]string{scriptPath}, args...)
-    cmd := exec.Command("python", cmdArgs...)
-    output, err := cmd.CombinedOutput()
-    if err != nil {
-        log.Fatalf("Failed to execute command: %s, with output: %s", err, string(output))
-    }
-    //Print the output from the Python script
-    fmt.Printf("Python Script Output:\n%s\n", string(output))
-}
-
-
 
 
 
@@ -55,7 +39,6 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
         return
     }
-	var req TranslateRequest
     err := json.NewDecoder(r.Body).Decode(&req)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
@@ -63,19 +46,17 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
     }
     defer r.Body.Close()
     var wg sync.WaitGroup
+    fmt.Println(req)
     wg.Add(2)
-
     go func() {
         defer wg.Done()
-        runPythonScript("./web_scrapper.py", req.URL, "./output.html")
+        runPythonScript("./web_scrapper.py", req.URL,"./output.html")
     }()
-
     go func() {
         defer wg.Done()
-        runPythonScript("./clean_up.py")
+        runPythonScript("./clean_up.py", req.SessionID)
     }()
     wg.Wait()
-    fmt.Println("fini!")
 	// Now call modifyHTML
     imageUrls := make([]ImageData, 0)
     imageUrls, err = modifyHTML("./output.html")
@@ -188,11 +169,35 @@ func downloadPdfHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+
+func sessionEndHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w) // Enable CORS
+    // Handle preflight requests for CORS
+    if r.Method == "OPTIONS" {
+        return
+    }
+
+    if r.Method != "POST" {
+        http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
+        return
+    }
+    var request TranslateRequest
+    err := json.NewDecoder(r.Body).Decode(&request)
+    fmt.Println(request.SessionID + "here")
+
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    defer r.Body.Close()
+    runPythonScript("./clean_up.py", request.SessionID)
+
+}
 func main() {
     // Define the route and its handler function
     http.HandleFunc("/translate_images", translateImagesHandler)
     http.HandleFunc("/download_pdf", downloadPdfHandler)
-
+    http.HandleFunc("/session-end", sessionEndHandler)
 
 
     // Start the HTTP server

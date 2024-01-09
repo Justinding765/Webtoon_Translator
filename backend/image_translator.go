@@ -6,12 +6,12 @@ import (
     "fmt"
     "io"
     "io/ioutil"
-    "os/exec"
     "sync"
     "golang.org/x/net/html"
     "log"
-    "strconv"
     "net/http"
+    "os/exec"
+    "strconv"
 
 )
 
@@ -19,7 +19,26 @@ type ImageData struct {
     URL   string
     Index int
 }
+
+type TranslateRequest struct {
+    URL string `json:"url"`
+    SessionID  string `json:"sessionId"`
+
+}
 var wg sync.WaitGroup // Waits for a collection of goroutines to finish
+
+func runPythonScript(scriptPath string, args ...string) ([]byte, error) {
+    cmdArgs := append([]string{scriptPath}, args...)
+    cmd := exec.Command("python", cmdArgs...)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Printf("Failed to execute command: %s, with output: %s", err, string(output))
+        return nil, err
+    }
+    // Print the output from the Python script
+    fmt.Printf("Python Script Output:\n%s\n", string(output))
+    return output, nil
+}
 
 
 // downloadImage downloads the image from the given URL and returns the path to the local temp file
@@ -55,16 +74,12 @@ func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
             break
         }
     }
-    // Construct the command to run the Python script
-    cmd := exec.Command("python", "./translate_Images.py", imgURL, strconv.Itoa(index))
-
-    // Execute the command and capture the combined standard output and standard error
-    output, err := cmd.CombinedOutput()
+    output, err := runPythonScript("./translate_Images.py", imgURL, strconv.Itoa(index), req.SessionID)
     if err != nil {
-        log.Fatalf("Failed to execute python script at index %d: %v, with output: %s\n", index, err, string(output))
+        // handle the error
         return
     }
-
+    
     // Parse the JSON output
     var result map[string]interface{}
     err = json.Unmarshal(output, &result)
@@ -90,18 +105,6 @@ func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
 
 }
 
-//Delete?
-func cloneNode(n *html.Node) *html.Node {
-    newNode := &html.Node{
-        Type:     n.Type,
-        DataAtom: n.DataAtom,
-        Data:     n.Data,
-        Attr:     make([]html.Attribute, len(n.Attr)),
-    }
-    copy(newNode.Attr, n.Attr)
-
-    return newNode
-}
 
 func modifyHTML(inputFile string) ([]ImageData, error) {
     content, err := ioutil.ReadFile(inputFile)
