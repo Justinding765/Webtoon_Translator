@@ -1,34 +1,59 @@
 import { useNavigate } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
 import '../App.css'
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
     const [url, setUrl] = useState('');
-    const [loading, setLoading] = useState(false);  // New state for loading
+    const [loading, setLoading] = useState(false);
+    const [sessionId, setSessionId] = useState('');
+    const [isSubmittedSuccessfully, setIsSubmittedSuccessfully] = useState(false);
+    const [imageUrls, setImageUrls] = useState(null); // State to store image URLs
+
+    useEffect(() => {
+        // Check if a session ID already exists
+        let currentSessionId = sessionStorage.getItem('sessionId');
+        console.log(isSubmittedSuccessfully)
+        // If not, generate a new one and store it in sessionStorage
+        if (!currentSessionId) {
+            currentSessionId = uuidv4();
+            sessionStorage.setItem('sessionId', currentSessionId);
+        }
+
+        setSessionId(currentSessionId);
+       
+    }, [])
+
+    useEffect(() => {
+        if (isSubmittedSuccessfully && imageUrls) {
+            navigate('/translation', { state: { imageUrls, isSubmittedSuccessfully } });
+        }
+    }, [isSubmittedSuccessfully, imageUrls, navigate]);
+
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setLoading(true);  // Set loading to true when the request starts
-        console.log("/api/translate_images")
         try {
-            const response = await fetch('/api/translate_images',  {
+            const response = await fetch('/api/translate_images', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ url: url }),
+                body: JSON.stringify({ url, sessionId }),
             });
-
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            setLoading(false);  // Set loading to false when the request completes
             const data = await response.json();
-            
-            // Redirect and pass the image URLs
-            navigate('/translation', { state: { imageUrls: data } });
+            setImageUrls(data); // Store image URLs
+            setIsSubmittedSuccessfully(true);
         } catch (error) {
             console.error('Error submitting URL:', error);
+            setIsSubmittedSuccessfully(false); // Set to false in case of error
+        } finally {
             setLoading(false);
         }
     };

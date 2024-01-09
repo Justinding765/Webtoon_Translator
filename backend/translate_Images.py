@@ -11,9 +11,8 @@ import numpy as np
 import sys
 import time
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './config/credentials.json'
-def upload_image(img_pil, index):
+def upload_image(img_pil, index, bucket_name):
     # Convert PIL Image to bytes
-    bucket_name = "translated-images"
     img_byte_arr = io.BytesIO()
     img_pil.save(img_byte_arr, format='JPEG')
     img_byte_arr = img_byte_arr.getvalue()
@@ -22,20 +21,22 @@ def upload_image(img_pil, index):
     client = storage.Client()
     bucket = client.get_bucket(bucket_name)
 
-    # Create a blob (GCS file)
-    filename = f"{index}_translated_image.jpg"
+    # Generate a unique timestamp
+    timestamp = int(time.time())
+
+    # Create a blob (GCS file) with a unique filename using the timestamp
+    filename = f"{index}_translated_image_{timestamp}.jpg"
     blob = bucket.blob(filename)
 
     # Upload the image
     blob.upload_from_string(img_byte_arr, content_type='image/jpeg')
 
     # Generate a unique URL
-    timestamp = int(time.time())
-    unique_url = f"https://storage.googleapis.com/{bucket_name}/{filename}?ts={timestamp}"
+    unique_url = blob.public_url
     
     return json.dumps({"image": unique_url})
  
-def translate_image(URL, index):
+def translate_image(URL, index, sessionID):
     img_url = URL
     # Initialize Google Cloud clients
     vision_client = vision.ImageAnnotatorClient()
@@ -146,9 +147,10 @@ def translate_image(URL, index):
 
     # Convert back to PIL Image and save
     img_pil = Image.fromarray(img)
-    return upload_image(img_pil, index)
+    return upload_image(img_pil, index, sessionID)
 if __name__ == '__main__':
     url = sys.argv[1]
     i = sys.argv[2]
-    result = translate_image(url,i)
+    sessionID = sys.argv[3]
+    result = translate_image(url,i, sessionID)
     print(result)
