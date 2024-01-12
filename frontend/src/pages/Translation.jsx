@@ -25,8 +25,7 @@ useEffect(() => {
 
   const handleInactivity = () => {
     // API call on inactivity
-    navigator.sendBeacon('/api/session-inactive', JSON.stringify({ sessionId: currentSessionId }));
-    // Navigate to the root route after the API call
+    navigator.sendBeacon('/api/clean_up', JSON.stringify({ sessionId: currentSessionId }));
     navigate('/');
   };
 
@@ -34,7 +33,7 @@ useEffect(() => {
     // Clear the existing timeout
     clearTimeout(inactivityTimeout);
     // Set a new timeout
-    inactivityTimeout = setTimeout(handleInactivity, 5 * 60 * 1000); // 5 minutes
+    inactivityTimeout = setTimeout(handleInactivity, 5 * 60 * 1000/30); // 5 minutes
   };
 
   // Reset the inactivity timer on these events
@@ -63,7 +62,18 @@ useEffect(() => {
     setLoading(true);  // Set loading to true when the request s
     const requestUrl = '/api/download_pdf';
     try {
-        const response = await fetch(requestUrl);
+      // Prepare the request options with method, headers, and body
+      const requestOptions = {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ imageUrls: imageUrls }) // Send imageUrls in the body
+      };
+
+      // Make the fetch request with the prepared options
+      const response = await fetch(requestUrl, requestOptions);
+        
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
@@ -75,13 +85,13 @@ useEffect(() => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setLoading(false);
-
     } catch (error) {
         console.error('Error downloading PDF:', error);
         setLoading(false);
-
     }
+    finally {
+      setLoading(false); // Ensure loading is set to false in both success and error cases
+  }
     
 };
   if (!isSubmittedSuccessfully) {

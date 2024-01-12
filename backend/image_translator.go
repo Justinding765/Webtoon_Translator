@@ -12,6 +12,8 @@ import (
     "net/http"
     "os/exec"
     "strconv"
+    "runtime"
+    
 
 )
 
@@ -64,7 +66,8 @@ func downloadImage(url string) (string, error) {
 }
 
 
-func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
+func processImageTag(node *html.Node, index int, ch chan<- ImageData, req TranslateRequest) {
+    fmt.Println("Number of goroutines:", runtime.NumGoroutine())
     // Extract the image URL from the node
     defer wg.Done()
     var imgURL string
@@ -106,8 +109,9 @@ func processImageTag(node *html.Node, index int, ch chan<- ImageData) {
 }
 
 
-func modifyHTML(inputFile string) ([]ImageData, error) {
+func modifyHTML(inputFile string, req TranslateRequest) ([]ImageData, error) {
     content, err := ioutil.ReadFile(inputFile)
+
     var image_URLS []ImageData
     if err != nil {
         return image_URLS, err
@@ -126,7 +130,7 @@ func modifyHTML(inputFile string) ([]ImageData, error) {
     processNode = func(n *html.Node) {
         if n.Type == html.ElementNode && n.Data == "img" {
             wg.Add(1)
-            go processImageTag(n, index, ch)
+            go processImageTag(n, index, ch, req)
             index++
         }
         for c := n.FirstChild; c != nil; c = c.NextSibling {

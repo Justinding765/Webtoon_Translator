@@ -37,4 +37,4 @@ ENV GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/backend/config/credentials.json
 EXPOSE 5000
 
 # Compile the Go application and run the server program when the container launches
-CMD go build -o /app/server . && /app/server
+CMD go build -o /usr/src/app/backend/server . && /usr/src/app/backend/server

@@ -19,24 +19,16 @@ def clean_up(sessionID):
             # Delete the blob
             blob.delete()
         bucket.delete()
-    # Create the bucket if it does not exist.
-    bucket = client.create_bucket(bucket, location="us-central1")
-    print(f"Bucket {sessionID} created.")
 
-    # Enable uniform bucket-level access
-    bucket.iam_configuration.uniform_bucket_level_access_enabled = True
-    bucket.patch()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_folder = os.path.join(script_dir, 'output')
+    html_file = os.path.join(output_folder, f'{sessionID}.html')
 
-    # Grant public read access to the objects in the bucket
-    policy = bucket.get_iam_policy(requested_policy_version=3)
-    policy.bindings.append({
-        "role": "roles/storage.objectViewer",
-        "members": {"allUsers"}
-    })
-    bucket.set_iam_policy(policy)
-
-    print(sessionID)
+    if os.path.exists(html_file):
+        os.remove(html_file) 
+    print("finished cleaning")
 
 if __name__ == '__main__':
+
     sessionID = sys.argv[1]
     clean_up(sessionID)

@@ -14,7 +14,6 @@ const HomePage: React.FC = () => {
     useEffect(() => {
         // Check if a session ID already exists
         let currentSessionId = sessionStorage.getItem('sessionId');
-        console.log(isSubmittedSuccessfully)
         // If not, generate a new one and store it in sessionStorage
         if (!currentSessionId) {
             currentSessionId = uuidv4();
@@ -22,6 +21,8 @@ const HomePage: React.FC = () => {
         }
 
         setSessionId(currentSessionId);
+        console.log(currentSessionId)
+
        
     }, [])
 

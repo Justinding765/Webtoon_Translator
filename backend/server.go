@@ -6,14 +6,15 @@ import (
     "log"
     "net/http"
     "sort"
-    "sync"
     "github.com/jung-kurt/gofpdf"
     "os"
+    "strings"
+    "io/ioutil"
+
+    "runtime"
 
 )
 //Will having these global variables cause issues for concurrent requests?
-var urlsOnly []string
-var req TranslateRequest
 
 
 // Helper function to set CORS headers
@@ -39,37 +40,35 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
         return
     }
+    var req TranslateRequest
     err := json.NewDecoder(r.Body).Decode(&req)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
     defer r.Body.Close()
-    var wg sync.WaitGroup
-    fmt.Println(req)
-    wg.Add(2)
-    go func() {
-        defer wg.Done()
-        runPythonScript("./web_scrapper.py", req.URL,"./output.html")
-    }()
-    go func() {
-        defer wg.Done()
-        runPythonScript("./clean_up.py", req.SessionID)
-    }()
-    wg.Wait()
+    runPythonScript("./clean_up.py", req.SessionID)
+    outputfile, err:= runPythonScript("./web_scrapper.py", req.URL,req.SessionID)
+    //Have to trim the output from the compiler
+    outputfilestr := string(outputfile)
+    outputfilestr = strings.TrimSpace(outputfilestr)
+
+
 	// Now call modifyHTML
     imageUrls := make([]ImageData, 0)
-    imageUrls, err = modifyHTML("./output.html")
+    imageUrls, err = modifyHTML(string(outputfilestr), req)
     if err != nil {
         fmt.Println("Error:", err)
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+
     // Sort images by index
     sort.Slice(imageUrls, func(i, j int) bool {
         return imageUrls[i].Index < imageUrls[j].Index
     })
-    urlsOnly = make([]string, len(imageUrls))
+    
+    var urlsOnly = make([]string, len(imageUrls))
 
     // Extract only URLs into a new slice
     for i, imageUrl := range imageUrls {
@@ -79,7 +78,8 @@ func translateImagesHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK) // Explicitly setting the status code to 200
     json.NewEncoder(w).Encode(urlsOnly)
     
-    
+    fmt.Println("Number of goroutines:", runtime.NumGoroutine())
+
     
 
     
@@ -92,7 +92,24 @@ func downloadPdfHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method == "OPTIONS" {
         return
     }
+    body, err := ioutil.ReadAll(r.Body)
+    if err != nil {
+        http.Error(w, "Error reading request body", http.StatusInternalServerError)
+        return
+    }
 
+    var jsonData map[string][]string
+    if err := json.Unmarshal(body, &jsonData); err != nil {
+        http.Error(w, "Error parsing JSON body", http.StatusBadRequest)
+        return
+    }
+
+    // Extract the URLs
+    urlsOnly, exists := jsonData["imageUrls"]
+    if !exists {
+        http.Error(w, "imageUrls not found in JSON body", http.StatusBadRequest)
+        return
+    }
     const (
         pageWidth = 210.0 // A4 width in mm
         margin    = 10.0  // Margin in mm
@@ -167,6 +184,7 @@ func downloadPdfHandler(w http.ResponseWriter, r *http.Request) {
         log.Printf("Failed to generate PDF: %v", err)
         http.Error(w, "Failed to generate PDF", http.StatusInternalServerError)
     }
+    return
 }
 
 
@@ -192,12 +210,13 @@ func sessionEndHandler(w http.ResponseWriter, r *http.Request) {
     defer r.Body.Close()
     runPythonScript("./clean_up.py", request.SessionID)
 
+
 }
 func main() {
     // Define the route and its handler function
     http.HandleFunc("/translate_images", translateImagesHandler)
     http.HandleFunc("/download_pdf", downloadPdfHandler)
-    http.HandleFunc("/session-end", sessionEndHandler)
+    http.HandleFunc("/clean_up", sessionEndHandler)
 
 
     // Start the HTTP server
